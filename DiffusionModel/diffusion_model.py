@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-import tqdm
+from tqdm import tqdm
 import os
 import wandb
 
@@ -57,7 +57,7 @@ class DiffusionModel(nn.Module):
         self.model.eval()
         with torch.inference_mode():
             z = torch.randn((num_samples, image_channels, image_size, image_size)).to(self.device) # initial random noise image
-            for i in tqdm(reversed(range(1, self.noise_steps)), "Generating images"):
+            for i in tqdm(reversed(range(1, self.noise_steps)), "Generating images", total=self.noise_steps):
                 t = (torch.ones(num_samples) * i).long().to(self.device) # time step i for every noise step
                 conditional_predicted_noise = self.model(z, t, labels)
                 
@@ -67,9 +67,9 @@ class DiffusionModel(nn.Module):
                 else:
                     predicted_noise = conditional_predicted_noise
                 
-                alpha = self.alpha[t]
-                alpha_hat = self.alpha_hat[t]
-                beta = self.beta[t]
+                alpha = self.alpha[t][:, None, None, None]
+                alpha_hat = self.alpha_hat[t][:, None, None, None]
+                beta = self.beta[t][:, None, None, None]
                 
                 if i > 1:
                     noise = torch.randn_like(z) 
@@ -92,7 +92,7 @@ class DiffusionModel(nn.Module):
             optimizer.load_state_dict(checkpoint["optimizer"])
             scaler.load_state_dict(checkpoint["scaler"])
         """
-        file_path = os.path.join("models", file_name)
+        file_path = os.path.join("./models", file_name)
         checkpoint = torch.load(file_path, map_location = lambda storage, loc: storage.cuda(self.device))
         self.model.load_state_dict(checkpoint["model"])
 
@@ -101,14 +101,14 @@ class DiffusionModel(nn.Module):
 
     def save_model(self, file_name, optimizer, scaler):
         "Save model locally and on wandb"
-        if not os.path.exists("models/"):
-            os.mkdir("models/")
+        if not os.path.exists("./models/"):
+            os.mkdir("./models/")
 
         checkpoint = {"model": self.model.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "scaler": scaler.state_dict()}
 
-        file_path = os.path.join("models", file_name)
+        file_path = os.path.join("./models", file_name)
         torch.save(checkpoint, file_path)
         at = wandb.Artifact(name="model", type="model", description=f"Model weights for Diffusion Model {file_name}")
         at.add_file(local_path=file_path, name=file_name)

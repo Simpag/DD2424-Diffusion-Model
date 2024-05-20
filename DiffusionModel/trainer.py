@@ -24,14 +24,16 @@ class Trainer:
         self.scheduler = optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=lr,
                                                        steps_per_epoch=len(self.train_dataloader), epochs=self.epochs)
         self.img_size = img_size
+        self.img_channels = train_data.data[0].shape[-1]
         self.cfg_strength = cfg_strength
         self.validation = validation
+        self.num_classes = len(train_data.classes)
 
     def log_images(self):
         "Log images to wandb and save them to disk"
-        labels = torch.arange(len(self.train_dataloader.classes)).long().to(self.device)
+        labels = torch.arange(self.num_classes).long().to(self.device)
         # sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: int)
-        sampled_images = self.model.sample(self.img_size, 3, labels, self.cfg_strength)
+        sampled_images = self.model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
         wandb.log(
             {"sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
 
@@ -65,7 +67,7 @@ class Trainer:
             self.model.eval()
             dataloader = self.test_dataloader
 
-        for i, (images, labels) in enumerate(tqdm(dataloader)):
+        for i, (images, labels) in enumerate(tqdm(dataloader, "Training" if train else "Validation")):
             with torch.autocast("cuda", enabled=self.use_amp) and (
             torch.inference_mode() if not train else torch.enable_grad()):
                 images = images.to(self.device)
@@ -87,15 +89,15 @@ class Trainer:
         return avg_loss.mean().item()
 
     def fit(self):
-        for epoch in tqdm(range(self.epochs)):
+        for epoch in tqdm(range(self.epochs), "Epoch"):
             self.train_epoch(epoch, train=True)
 
             #  validation
-            if self.validation:
+            if self.validation and epoch % 2 == 0:
                 avg_loss = self.train_epoch(epoch, train=False)
                 wandb.log({"val_mse": avg_loss}, step=(epoch + 1) * len(self.train_dataloader))
 
             #  log predictions
-            if epoch % 10 == 0:
+            if epoch % 1 == 0:
                 self.log_images()
 

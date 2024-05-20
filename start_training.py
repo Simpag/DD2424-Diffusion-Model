@@ -1,15 +1,18 @@
 import torch
 import numpy as np
+import wandb
 
 from DiffusionModel.diffusion_model import DiffusionModel
 from DiffusionModel.trainer import Trainer
 from utils import cifar_10_transformed, plot_images
 
 if __name__ == "__main__":
-    batch_size = 10 
-    num_workers = 4
+    wandb.login()
+
+    batch_size = 32 
+    num_workers = 3
     lr = 3e-3
-    epochs = 200
+    epochs = 1
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -28,9 +31,25 @@ if __name__ == "__main__":
     compile_model = False
     validation = True
 
+    run = wandb.init(project="Diffusion Model", config={
+            "dataset": "CIFAR10",
+            "learning_rate": lr,
+            "batch size": batch_size,
+            "epochs": epochs,
+            "cfg_strength": cfg_strength,
+            "noise_steps": noise_steps,
+            "beta_start": beta_start,
+            "beta_end": beta_end,
+            "encoder_decoder_layers": encoder_decoder_layers,
+            "bottleneck_layers": bottleneck_layers,
+            "UNet_embedding_dimensions": UNet_embedding_dimensions,
+            "time_dimension": time_dimension,
+        }
+    )
+
     model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model)
     trainer = Trainer(model, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
     trainer.fit()
 
     #### save model
-    #model.save_model("test.pt", trainer.optimizer, trainer.scaler)
+    model.save_model("test.pt", trainer.optimizer, trainer.scaler)

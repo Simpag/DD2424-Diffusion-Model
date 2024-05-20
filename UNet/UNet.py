@@ -32,30 +32,30 @@ class UNet(nn.Module):
 
         # Encoder TODO: Upgrade so we can have variable amount of down and self attention layers...
         self.initial_in     = DoubleConv(in_channels, a).to(self.device)
-        down_1              = Down(a, b, UNet_embedding_dimensions) # Halves the input size # 32
-        self_attention_1    = SelfAttention(b)   
-        down_2              = Down(b, c, UNet_embedding_dimensions) 
-        self_attention_2    = SelfAttention(c)
-        down_3              = Down(c, c, UNet_embedding_dimensions) 
-        self_attention_3    = SelfAttention(c)
+        down_1              = Down(a, b, UNet_embedding_dimensions).to(self.device) # Halves the input size # 32
+        self_attention_1    = SelfAttention(b).to(self.device)   
+        down_2              = Down(b, c, UNet_embedding_dimensions).to(self.device) 
+        self_attention_2    = SelfAttention(c).to(self.device)
+        down_3              = Down(c, c, UNet_embedding_dimensions).to(self.device)
+        self_attention_3    = SelfAttention(c).to(self.device)
         self.encoder        = [[down_1, self_attention_1], [down_2, self_attention_2], [down_3, self_attention_3]]
 
         # Bottle neck
-        self.bottlenecks    = [DoubleConv(c, bottleneck_layers[0]),]
+        self.bottlenecks    = [DoubleConv(c, bottleneck_layers[0]).to(self.device),]
         for i in range(1, len(bottleneck_layers)):
-            self.bottlenecks.append(DoubleConv(bottleneck_layers[i], bottleneck_layers[i]))
+            self.bottlenecks.append(DoubleConv(bottleneck_layers[i], bottleneck_layers[i]).to(self.device))
 
-        self.bottlenecks.append(DoubleConv(bottleneck_layers[-1], c))
+        self.bottlenecks.append(DoubleConv(bottleneck_layers[-1], c).to(self.device))
 
         # Decoder
-        up_1                = Up(2*c, b, UNet_embedding_dimensions) # Input to up is 2x since we have skip connection
-        self_attention_4    = SelfAttention(b)
-        up_2                = Up(2*b, a, UNet_embedding_dimensions)
-        self_attention_5    = SelfAttention(a)
-        up_3                = Up(2*a, a, UNet_embedding_dimensions)
-        self_attention_6    = SelfAttention(a)
+        up_1                = Up(2*c, b, UNet_embedding_dimensions).to(self.device) # Input to up is 2x since we have skip connection
+        self_attention_4    = SelfAttention(b).to(self.device)
+        up_2                = Up(2*b, a, UNet_embedding_dimensions).to(self.device)
+        self_attention_5    = SelfAttention(a).to(self.device)
+        up_3                = Up(2*a, a, UNet_embedding_dimensions).to(self.device)
+        self_attention_6    = SelfAttention(a).to(self.device)
         self.decoder        = [[up_1, self_attention_4], [up_2, self_attention_5], [up_3, self_attention_6]]
-        self.final_out      = nn.Conv2d(a, out_channels, kernel_size=1)
+        self.final_out      = nn.Conv2d(a, out_channels, kernel_size=1).to(self.device)
 
 
     def encode_positional_information(self, t: torch.Tensor):
@@ -97,7 +97,7 @@ class UNet(nn.Module):
                 x = up(encodings[-1], encodings[-2], t) #x4, x3
                 x = self_attention(x)
             else:
-                x = up(x, encodings[-2-i])
+                x = up(x, encodings[-2-i], t)
                 x = self_attention(x)
 
         output = self.final_out(x)
