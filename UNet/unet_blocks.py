@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 class SelfAttention(nn.Module):
     def __init__(self, channels):
-        super(SelfAttention, self).__init__()
+        super().__init__()
         self.channels = channels        
         self.mha = nn.MultiheadAttention(channels, 4, batch_first=True)
         self.ln = nn.LayerNorm([channels])
