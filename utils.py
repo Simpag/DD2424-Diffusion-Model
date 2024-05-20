@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, ConcatDataset
 
 
-def get_cifar_10():
+def cifar_10_transformed():
     data_transforms = [
         T.RandomHorizontalFlip(),
         T.ToTensor(),  # Scales into [0, 1]
@@ -19,12 +19,14 @@ def get_cifar_10():
     train_data = torchvision.datasets.CIFAR10(root="./datasets/", download=True, transform=transform, train=True)
     test_data = torchvision.datasets.CIFAR10(root="./datasets/", download=True, transform=transform, train=False)
 
-    return ConcatDataset([train_data, test_data])
+    return train_data, test_data
 
 
-def load_data(dataset, batch_size, num_workers):
-    return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+def load_data(train_data, test_data, batch_size, num_workers):
+    dataloader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    dataloader_test = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
+    return dataloader_train, dataloader_test
 
 def plot_images(images):
     plt.figure(figsize=(32, 32))
