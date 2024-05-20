@@ -86,11 +86,16 @@ class DiffusionModel(nn.Module):
 
 
     def load_model(self, file_name):
-        """Returns the state dict for optimizer and scaler"""
+        """
+        Returns the state dict for optimizer and scaler
+        Load them by:
+            optimizer.load_state_dict(checkpoint["optimizer"])
+            scaler.load_state_dict(checkpoint["scaler"])
+        """
         file_path = os.path.join("models", file_name)
         checkpoint = torch.load(file_path, map_location = lambda storage, loc: storage.cuda(self.device))
         self.model.load_state_dict(checkpoint["model"])
-        
+
         return checkpoint["optimizer"], checkpoint["scaler"]
 
 
