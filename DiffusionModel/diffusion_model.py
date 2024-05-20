@@ -86,17 +86,27 @@ class DiffusionModel(nn.Module):
 
 
     def load_model(self, file_name):
-        self.model.load_state_dict(torch.load(os.path.join("models", file_name)))
+        """Returns the state dict for optimizer and scaler"""
+        file_path = os.path.join("models", file_name)
+        checkpoint = torch.load(file_path, map_location = lambda storage, loc: storage.cuda(self.device))
+        self.model.load_state_dict(checkpoint["model"])
+        
+        return checkpoint["optimizer"], checkpoint["scaler"]
 
 
-    def save_model(self, file_name):
+    def save_model(self, file_name, optimizer, scaler):
         "Save model locally and on wandb"
         if not os.path.exists("models/"):
             os.mkdir("models/")
 
-        torch.save(self.model.state_dict(), os.path.join("models", file_name))
-        at = wandb.Artifact("model", type="model", description=f"Model weights for Diffusion Model {file_name}")
-        at.add_dir(os.path.join("models", file_name))
+        checkpoint = {"model": self.model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "scaler": scaler.state_dict()}
+
+        file_path = os.path.join("models", file_name)
+        torch.save(checkpoint, file_path)
+        at = wandb.Artifact(name="model", type="model", description=f"Model weights for Diffusion Model {file_name}")
+        at.add_file(local_path=file_path, name=file_name)
         wandb.log_artifact(at)
 
 
