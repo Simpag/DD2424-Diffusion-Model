@@ -31,7 +31,7 @@ class UNet(nn.Module):
             c = 256
 
         # Encoder TODO: Upgrade so we can have variable amount of down and self attention layers...
-        self.initial_in     = DoubleConv(in_channels, a)
+        self.initial_in     = DoubleConv(in_channels, a).to(self.device)
         down_1              = Down(a, b, UNet_embedding_dimensions) # Halves the input size # 32
         self_attention_1    = SelfAttention(b)   
         down_2              = Down(b, c, UNet_embedding_dimensions) 
@@ -63,12 +63,12 @@ class UNet(nn.Module):
         # https://arxiv.org/abs/1706.03762
         n = 10_000
         i_f = 1.0 / (
-            torch.pow(n, (torch.arange(0, self.time_dimension, 2, device=self.device).float() / self.time_dimension), device=self.device)
+            torch.pow(n, (torch.arange(0, self.time_dimension, 2, device=self.device).float() / self.time_dimension)).to(self.device)
         )
         sin_part = torch.sin(t.repeat(1, self.time_dimension // 2) * i_f)
         cos_part = torch.cos(t.repeat(1, self.time_dimension // 2) * i_f)
         encoding = torch.cat([sin_part, cos_part], dim=-1)
-        return encoding
+        return encoding.to(self.device)
     
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor):

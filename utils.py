@@ -11,7 +11,7 @@ def cifar_10_transformed():
     data_transforms = [
         T.RandomHorizontalFlip(),
         T.ToTensor(),  # Scales into [0, 1]
-        T.Lambda(lambda t: (t * 2) - 1)  # Shift to [-1, 1]
+        shift_image  # Shift to [-1, 1]
     ]
     transform = T.Compose(data_transforms)
 
@@ -22,15 +22,39 @@ def cifar_10_transformed():
     return train_data, test_data
 
 
+def shift_image(t):
+    return (t * 2) - 1
+
+
 def load_data(train_data, test_data, batch_size, num_workers):
-    dataloader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    dataloader_test = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    dataloader_train = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True)
+    dataloader_test = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=True)
 
     return dataloader_train, dataloader_test
 
 def plot_images(images):
-    plt.figure(figsize=(32, 32))
-    plt.imshow(torch.cat([
-        torch.cat([i for i in images.cpu()], dim=-1),
-    ], dim=-2).permute(1, 2, 0).cpu())
+    if type(images) == np.ndarray:
+        rows = 2
+        cols = 2
+
+        # Create subplots
+        fig, axes = plt.subplots(rows, cols, figsize=(8, 8))
+
+        # Flatten the axes array for easy iteration
+        axes = axes.flatten()
+
+        # Display each image
+        for i in range(4):
+            axes[i].imshow(images[i])
+            axes[i].axis('off')  # Hide the axes
+
+        # If there are any remaining axes, hide them
+        for i in range(4, rows * cols):
+            axes[i].axis('off')
+    else:
+        plt.figure(figsize=(32, 32))
+
+        plt.imshow(torch.cat([
+            torch.cat([i for i in images.cpu()], dim=-1),
+        ], dim=-2).permute(1, 2, 0).cpu())
     plt.show()

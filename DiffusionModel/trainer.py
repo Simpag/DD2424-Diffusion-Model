@@ -1,4 +1,4 @@
-from diffusion_model import DiffusionModel
+from DiffusionModel.diffusion_model import DiffusionModel
 from utils import load_data, plot_images
 import torch
 from torch import optim
@@ -42,8 +42,8 @@ class Trainer:
 
     def noise_images(self, x, t):
         "Add noise to images at instant t"
-        sqrt_alpha_hat = torch.sqrt(self.model.alpha_hat[t])
-        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.model.alpha_hat[t])
+        sqrt_alpha_hat = torch.sqrt(self.model.alpha_hat[t])[:, None, None, None]
+        sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.model.alpha_hat[t])[:, None, None, None]
         epsilon = torch.randn_like(x)
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
 
@@ -57,11 +57,15 @@ class Trainer:
 
     def train_epoch(self, epoch, train=True):
         avg_loss = 0.
+        dataloader = None
         if train:
             self.model.train()
+            dataloader = self.train_dataloader
         else:
             self.model.eval()
-        for i, (images, labels) in tqdm(self.train_dataloader):
+            dataloader = self.test_dataloader
+
+        for i, (images, labels) in enumerate(tqdm(dataloader)):
             with torch.autocast("cuda", enabled=self.use_amp) and (
             torch.inference_mode() if not train else torch.enable_grad()):
                 images = images.to(self.device)
@@ -78,7 +82,8 @@ class Trainer:
                 if i % 100 == 0:
                     wandb.log({"train_mse": loss.item(),
                                "learning_rate": self.scheduler.get_last_lr()[0]},
-                              step=epoch * len(self.train_dataloader) + i)
+                              step=epoch * len(dataloader) + i)
+                    
         return avg_loss.mean().item()
 
     def fit(self):
@@ -88,9 +93,9 @@ class Trainer:
             #  validation
             if self.validation:
                 avg_loss = self.train_epoch(epoch, train=False)
-                wandb.log({"val_mse": avg_loss})
+                wandb.log({"val_mse": avg_loss}, step=(epoch + 1) * len(self.train_dataloader))
 
             #  log predictions
-            if epoch % 100 == 0:
+            if epoch % 10 == 0:
                 self.log_images()
 

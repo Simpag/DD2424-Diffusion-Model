@@ -56,7 +56,7 @@ class Down(nn.Module):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
-            DoubleConv(in_channels, in_channels, residual=True),
+            DoubleConv(in_channels, in_channels, skip_connection=True),
             DoubleConv(in_channels, out_channels),
         )
 
@@ -81,7 +81,7 @@ class Up(nn.Module):
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         self.conv = nn.Sequential(
-            DoubleConv(in_channels, in_channels, residual=True),
+            DoubleConv(in_channels, in_channels, skip_connection=True),
             DoubleConv(in_channels, out_channels, in_channels // 2),
         )
 
