@@ -43,7 +43,7 @@ class DiffusionModel(nn.Module):
        return self.model(x, t, y)
     
     
-    def sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: int):
+    def sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: float):
         """
         Sample images from diffusion model.
 
