@@ -11,8 +11,8 @@ if __name__ == "__main__":
 
     batch_size = 32 
     num_workers = 3
-    lr = 3e-3
-    epochs = 1
+    lr = 5e-3
+    epochs = 1000
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -30,6 +30,8 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     compile_model = False
     validation = True
+    validation_logging_interval = 5
+    image_logging_interval = 100
 
     run = wandb.init(project="Diffusion Model", config={
             "dataset": "CIFAR10",
@@ -47,9 +49,12 @@ if __name__ == "__main__":
         }
     )
 
-    model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model)
-    trainer = Trainer(model, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
-    trainer.fit()
+    try:
+        model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model)
+        trainer = Trainer(model, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
+        trainer.fit(validation_logging_interval, image_logging_interval)
 
-    #### save model
-    model.save_model("test.pt", trainer.optimizer, trainer.scaler)
+        #### save model
+        model.save_model("linear_noise_schedule.pt", trainer.optimizer, trainer.scaler)
+    except KeyboardInterrupt:
+        model.save_model("linear_noise_schedule.pt", trainer.optimizer, trainer.scaler)

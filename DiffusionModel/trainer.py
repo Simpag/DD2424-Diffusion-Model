@@ -88,16 +88,17 @@ class Trainer:
                     
         return avg_loss.mean().item()
 
-    def fit(self):
+    def fit(self, validation_logging_interval = 5, image_logging_interval = 100):
         for epoch in tqdm(range(self.epochs), "Epoch"):
             self.train_epoch(epoch, train=True)
 
             #  validation
-            if self.validation and epoch % 2 == 0:
+            if self.validation and epoch % validation_logging_interval == 0:
                 avg_loss = self.train_epoch(epoch, train=False)
-                wandb.log({"val_mse": avg_loss}, step=(epoch + 1) * len(self.train_dataloader))
+                wandb.log({"val_mse": avg_loss})
 
             #  log predictions
-            if epoch % 1 == 0:
+            if epoch % image_logging_interval == 0:
                 self.log_images()
+        
 
