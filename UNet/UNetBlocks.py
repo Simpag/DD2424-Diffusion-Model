@@ -17,7 +17,7 @@ class SelfAttention(nn.Module):
         )
 
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         size = x.shape[-1]
         x = x.view(-1, self.channels, size * size).swapaxes(1, 2)
         x_ln = self.ln(x)
