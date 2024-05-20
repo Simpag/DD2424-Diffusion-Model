@@ -11,7 +11,7 @@ import numpy as np
 class Trainer:
 
     def __init__(self, model: DiffusionModel, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
-                 train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float):
+                 train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float, validation: bool):
         self.model = model
         self.batch_size = batch_size
         self.epochs = epochs
@@ -25,6 +25,7 @@ class Trainer:
                                                        steps_per_epoch=len(self.train_dataloader), epochs=self.epochs)
         self.img_size = img_size
         self.cfg_strength = cfg_strength
+        self.validation = validation
 
     def log_images(self):
         "Log images to wandb and save them to disk"
@@ -80,16 +81,16 @@ class Trainer:
                               step=epoch * len(self.train_dataloader) + i)
         return avg_loss.mean().item()
 
-    def fit(self, args):
-        for epoch in tqdm(range(args.epochs)):
+    def fit(self):
+        for epoch in tqdm(range(self.epochs)):
             self.train_epoch(epoch, train=True)
 
             #  validation
-            if args.do_validation:
+            if self.validation:
                 avg_loss = self.train_epoch(epoch, train=False)
                 wandb.log({"val_mse": avg_loss})
 
             #  log predictions
-            if epoch % args.log_every_epoch == 0:
+            if epoch % 100 == 0:
                 self.log_images()
 
