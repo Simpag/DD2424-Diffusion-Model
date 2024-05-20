@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from UNetBlocks import DoubleConv, Down, SelfAttention, Up
+from UNet.unet_blocks import DoubleConv, Down, SelfAttention, Up
 
 class UNet(nn.Module):
     """Conditional UNet"""
