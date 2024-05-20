@@ -32,6 +32,7 @@ if __name__ == "__main__":
     validation = True
     validation_logging_interval = 5
     image_logging_interval = 100
+    model_name = "linear_noise_schedule.pt"
 
     run = wandb.init(project="Diffusion Model", config={
             "dataset": "CIFAR10",
@@ -55,6 +56,6 @@ if __name__ == "__main__":
         trainer.fit(validation_logging_interval, image_logging_interval)
 
         #### save model
-        model.save_model("linear_noise_schedule.pt", trainer.optimizer, trainer.scaler)
+        model.save_model(model_name, trainer.optimizer, trainer.scaler)
     except KeyboardInterrupt:
-        model.save_model("linear_noise_schedule.pt", trainer.optimizer, trainer.scaler)
+        model.save_model(model_name, trainer.optimizer, trainer.scaler)
