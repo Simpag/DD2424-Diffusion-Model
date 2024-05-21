@@ -7,7 +7,7 @@ import wandb
 from UNet.unet import UNet
 
 class DiffusionModel(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, noise_steps: int, beta_start: float, beta_end: float, device: str, compile_model=True) -> None:
+    def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, noise_steps: int, beta_start: float, beta_end: float, device: str, compile_model=False) -> None:
         """
          Initialize the Diffusion Model module.
 
@@ -23,7 +23,7 @@ class DiffusionModel(nn.Module):
              beta_start (float): Starting value for beta in the noise schedule.
              beta_end (float): Ending value for beta in the noise schedule.
              device (str): Device on which the model runs.
-             compile_model (bool): If True, compile the model.
+             compile_model (bool): If True, compile the model. (Only works on Linux)
 
         Example usage:
         model = DiffusionModel(in_channels=3, out_channels=3, encoder_decoder_layers=(64,128,256), bottleneck_layers=(512,512), UNet_embedding_dimensions=256, time_dimension=256, num_classes=10, noise_steps=1000, beta_start=1e-4, beta_end=2e-2, device="cpu")

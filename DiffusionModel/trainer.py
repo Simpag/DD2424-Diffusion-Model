@@ -59,18 +59,25 @@ class Trainer:
         labels = torch.arange(self.num_classes).long().to(self.device)
         # Sample images from the model
         sampled_images = self.model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
-        # Log images to wandb
-        wandb.log(
-            {"sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
         
         if self.ema_model is None:
+            wandb.log(
+                {
+                    "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]
+                }
+            )
             return
 
         # Sample images from the model
-        sampled_images = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+        sampled_images_ema = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
         # Log images to wandb
         wandb.log(
-            {"sampled_images_ema": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
+                {
+                    "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images],
+                    "sampled_images_ema": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images_ema],
+                }
+            )
+        
 
     def get_random_timesteps(self, n):
         """
