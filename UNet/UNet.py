@@ -42,7 +42,7 @@ class UNet(nn.Module):
 
         # Bottle neck
         self.bottlenecks    = nn.ModuleList([ConvBlock(c, bottleneck_layers[0]),])
-        for i in range(1, len(bottleneck_layers)):
+        for i in range(1, len(bottleneck_layers)-1):
             self.bottlenecks.append(ConvBlock(bottleneck_layers[i], bottleneck_layers[i]))
 
         self.bottlenecks.append(ConvBlock(bottleneck_layers[-1], c))
