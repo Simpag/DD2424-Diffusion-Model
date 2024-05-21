@@ -1,5 +1,6 @@
 from DiffusionModel.diffusion_model import DiffusionModel
 from utils import load_data, plot_images
+from Scoring.scoring import evaluate_generator
 import torch
 from torch import optim
 import torch.nn as nn
@@ -37,6 +38,7 @@ class Trainer:
         self.ema_decay = ema_decay
         self.batch_size = batch_size
         self.epochs = epochs
+        self.test_data = test_data  # saved for validation
         self.train_dataloader, self.test_dataloader = load_data(train_data, test_data, batch_size, num_workers)
         self.optimizer = optim.AdamW(params=self.model.parameters(), lr=lr)
         self.loss = nn.MSELoss()
@@ -52,31 +54,58 @@ class Trainer:
         self.num_classes = len(train_data.classes)
 
 
-    def log_images(self):
+    def log_images(self, model_images, model_images_ema):
         """
         Log sampled images to Weights and Biases (wandb)
         """
-        labels = torch.arange(self.num_classes).long().to(self.device)
-        # Sample images from the model
-        sampled_images = self.model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
-        
-        if self.ema_model is None:
-            wandb.log(
-                {
-                    "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]
-                }
-            )
-            return
+        log_dict = { "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images] }
 
-        # Sample images from the model
-        sampled_images_ema = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+        if model_images_ema is not None:
+            log_dict["sampled_images_ema"] = [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images_ema],
+
         # Log images to wandb
-        wandb.log(
-                {
-                    "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images],
-                    "sampled_images_ema": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images_ema],
+        wandb.log(log_dict)
+
+
+    def log_validation(self, avg_loss):
+        sampled_images, sampled_images_ema = None, None
+        for j in range(4):
+            labels = torch.arange(self.num_classes).repeat(5).long().to(self.device)
+            
+            # Sample images from the model
+            si = self.model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+            if sampled_images is None:
+                sampled_images = si
+            else:
+                sampled_images = torch.cat([sampled_images, si], dim=0) #.extend(si)
+
+            # Sample images from the ema model
+            if self.ema_model is not None:
+                si_ema = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+                if sampled_images_ema is None:
+                    sampled_images_ema = si_ema
+                else:
+                    sampled_images_ema = torch.cat([sampled_images_ema, si_ema], dim=0)
+
+        real_images_sample = np.random.choice(len(self.test_data.data), len(sampled_images))
+        real_images_sample = self.test_data.data[real_images_sample, :, :, :]
+        real_images_sample = torch.from_numpy(real_images_sample).permute((0,3,1,2)).to(self.device)
+        fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images_sample, normalized_images=False)
+        log_dict = {
+                    "val_mse": avg_loss,
+                    "val_fid": fid_score,
+                    "val_is": is_score,
                 }
-            )
+        
+        if sampled_images_ema is not None:
+            fid_score_ema, is_score_ema, is_deviation_ema = evaluate_generator(generated_images=sampled_images_ema, real_images=real_images_sample, normalized_images=False)
+            log_dict["val_fid_ema"] = fid_score_ema
+            log_dict["val_is_ema"] = is_score_ema
+
+        wandb.log(log_dict)
+
+        # Log sampled images at specified intervals
+        self.log_images(sampled_images[:self.num_classes, :, :, :], sampled_images_ema[:self.num_classes, :, :, :] if sampled_images_ema is not None else None)
         
 
     def get_random_timesteps(self, n):
@@ -176,13 +205,12 @@ class Trainer:
 
         return avg_loss.mean().item()
 
-    def fit(self, validation_logging_interval=5, image_logging_interval=100):
+    def fit(self, validation_logging_interval=5):
         """
         Fit the model to the training data.
 
         Parameters:
         - validation_logging_interval: Interval for logging validation metrics.
-        - image_logging_interval: Interval for logging sampled images.
         """
         for epoch in tqdm(range(self.epochs), "Epoch", position=0):
             self.run_epoch(epoch, train=True)
@@ -190,8 +218,5 @@ class Trainer:
             # Perform validation at specified intervals
             if self.validation and epoch % validation_logging_interval == 0:
                 avg_loss = self.run_epoch(epoch, train=False)
-                wandb.log({"val_mse": avg_loss})
+                self.log_validation(avg_loss)
 
-            # Log sampled images at specified intervals
-            if epoch % image_logging_interval == 0:
-                self.log_images()

@@ -4,7 +4,7 @@ from tqdm import tqdm
 import os
 import wandb
 
-from UNet.unet import UNet
+from UNet.UNet import UNet
 
 class DiffusionModel(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, noise_steps: int, beta_start: float, beta_end: float, device: str, compile_model=False) -> None:

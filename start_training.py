@@ -19,7 +19,7 @@ if __name__ == "__main__":
     num_workers = 3
     lr = 5e-4
     ema_decay = 0.999
-    epochs = 30
+    epochs = 2
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -35,10 +35,9 @@ if __name__ == "__main__":
     beta_start = 1e-4
     beta_end = 2e-2
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    compile_model = True # Only available on linux, will be very slow at the start but will ramp up
+    compile_model = False # Only available on linux, will be very slow at the start but will ramp up
     validation = True
-    validation_logging_interval = 10
-    image_logging_interval = 10
+    validation_logging_interval = 1
     model_name = "test.pt"
 
     print("Running on device: ", device)
@@ -68,7 +67,7 @@ if __name__ == "__main__":
             model.compile_model()
 
         trainer = Trainer(model, ema_model, ema_decay, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
-        trainer.fit(validation_logging_interval, image_logging_interval)
+        trainer.fit(validation_logging_interval)
 
         #### save models
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
