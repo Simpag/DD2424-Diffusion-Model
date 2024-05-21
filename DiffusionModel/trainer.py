@@ -69,7 +69,7 @@ class Trainer:
 
     def log_validation(self, avg_loss):
         sampled_images, sampled_images_ema = None, None
-        for j in range(4):
+        for j in range(2):
             labels = torch.arange(self.num_classes).repeat(5).long().to(self.device)
             
             # Sample images from the model
