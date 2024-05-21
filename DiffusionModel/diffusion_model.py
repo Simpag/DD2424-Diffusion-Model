@@ -57,7 +57,7 @@ class DiffusionModel(nn.Module):
         self.model.eval()
         with torch.inference_mode():
             z = torch.randn((num_samples, image_channels, image_size, image_size)).to(self.device) # initial random noise image
-            for i in tqdm(reversed(range(1, self.noise_steps)), f"Generating images ({num_samples})", total=self.noise_steps):
+            for i in tqdm(reversed(range(1, self.noise_steps)), f"Generating images ({num_samples})", total=self.noise_steps, position=2):
                 t = (torch.ones(num_samples) * i).long().to(self.device) # time step i for every noise step
                 conditional_predicted_noise = self.model(z, t, labels)
                 

@@ -1,18 +1,23 @@
 import torch
 import numpy as np
 import wandb
+import platform
 
 from DiffusionModel.diffusion_model import DiffusionModel
 from DiffusionModel.trainer import Trainer
 from utils import cifar_10_transformed, plot_images
 
 if __name__ == "__main__":
+    if platform.system() == 'Linux':
+        print("Setting high float32 matmul precision")
+        torch.set_float32_matmul_precision('high')
+
     wandb.login()
 
     batch_size = 32 
-    num_workers = 3
+    num_workers = 2
     lr = 5e-3
-    epochs = 1000
+    epochs = 500
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -28,11 +33,13 @@ if __name__ == "__main__":
     beta_start = 1e-4
     beta_end = 2e-2
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    compile_model = False
+    compile_model = True # Only available on linux, will be very slow at the start but will ramp up
     validation = True
-    validation_logging_interval = 5
-    image_logging_interval = 100
+    validation_logging_interval = 10
+    image_logging_interval = 10
     model_name = "linear_noise_schedule.pt"
+
+    print("Running on device: ", device)
 
     run = wandb.init(project="Diffusion Model", config={
             "dataset": "CIFAR10",

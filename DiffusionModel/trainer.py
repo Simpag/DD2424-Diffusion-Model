@@ -67,7 +67,7 @@ class Trainer:
             self.model.eval()
             dataloader = self.test_dataloader
 
-        for i, (images, labels) in enumerate(tqdm(dataloader, "Training" if train else "Validation")):
+        for i, (images, labels) in enumerate(tqdm(dataloader, "Training" if train else "Validation", position=1)):
             with torch.autocast("cuda", enabled=self.use_amp) and (
             torch.inference_mode() if not train else torch.enable_grad()):
                 images = images.to(self.device)
@@ -89,7 +89,7 @@ class Trainer:
         return avg_loss.mean().item()
 
     def fit(self, validation_logging_interval = 5, image_logging_interval = 100):
-        for epoch in tqdm(range(self.epochs), "Epoch"):
+        for epoch in tqdm(range(self.epochs), "Epoch", position=0):
             self.train_epoch(epoch, train=True)
 
             #  validation
