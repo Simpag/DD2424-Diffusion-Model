@@ -7,14 +7,17 @@ class UNet(nn.Module):
     """Conditional UNet"""
     def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, device: str):
         """
-        in_channels                 := Number of input channels
-        out_channels                := Number of output channels
-        encoder_decoder_layers      := Four values for the encoder/decoder
-        bottleneck_layers           := Bottleneck dimension, at least one value
-        UNet_embedding_dimensions   := Embedding dimensions for Up and Down modules
-        time_dimension              := Time embedding dimension 
-        num_classes                 := Number of classes in the dataset
-        device                      := Which device the model is running on
+        Initializes the UNet model with given parameters.
+
+        Parameters:
+            in_channels                 := Number of input channels
+            out_channels                := Number of output channels
+            encoder_decoder_layers      := Four values for the encoder/decoder
+            bottleneck_layers           := Bottleneck dimension, at least one value
+            UNet_embedding_dimensions   := Embedding dimensions for Up and Down modules
+            time_dimension              := Time embedding dimension
+            num_classes                 := Number of classes in the dataset
+            device                      := Which device the model is running on
         """
         super().__init__()
         self.time_dimension = time_dimension
@@ -23,6 +26,7 @@ class UNet(nn.Module):
         # Setup class encoding
         self.label_embedding = nn.Embedding(num_classes, time_dimension)
 
+        # Define default values for encoder/decoder layers if not provided
         if encoder_decoder_layers:
             a, b, c, d = encoder_decoder_layers
         else:
@@ -31,7 +35,7 @@ class UNet(nn.Module):
             c = 256
             d = 512
 
-        # Encoder TODO: Upgrade so we can have variable amount of down and self attention layers...
+        # Encoder blocks
         self.initial_in     = ConvBlock(in_channels, a)
         down_1              = DownBlock(a, b, UNet_embedding_dimensions) # Halves the input size # 32
         self_attention_1    = SelfAttentionBlock(b)
@@ -43,14 +47,14 @@ class UNet(nn.Module):
         self_attention_4    = SelfAttentionBlock(d)
         self.encoder        = nn.ModuleList([nn.ModuleList([down_1, self_attention_1]), nn.ModuleList([down_2, self_attention_2]), nn.ModuleList([down_3, self_attention_3]), nn.ModuleList([down_4, self_attention_4])])
 
-        # Bottle neck
+        # Bottleneck layers
         self.bottlenecks    = nn.ModuleList([ConvBlock(d, bottleneck_layers[0]),])
         #self.bottlenecks = nn.ModuleList()
         for i in range(len(bottleneck_layers)):
             self.bottlenecks.append(ConvBlock(bottleneck_layers[i], bottleneck_layers[i]))
         self.bottlenecks.append(ConvBlock(bottleneck_layers[-1], d))
 
-        # Decoder
+        # Decoder blocks
         up_1                = UpBlock(2*d, c, UNet_embedding_dimensions) # Input to up is 2x since we have skip connection
         self_attention_5    = SelfAttentionBlock(c)
         up_2                = UpBlock(2*c, b, UNet_embedding_dimensions)
@@ -64,8 +68,8 @@ class UNet(nn.Module):
 
 
     def encode_positional_information(self, t: torch.Tensor):
-        """Simple sinosodial encoding"""
-        # https://arxiv.org/abs/1706.03762
+        """Simple sinusoidal encoding based on the transformer paper."""
+        # Reference: https://arxiv.org/abs/1706.03762
         n = 10_000
         denom =  torch.pow(n, (torch.arange(0, self.time_dimension, 2, device=self.device).float() / self.time_dimension))
         sin_part = torch.sin(t.repeat(1, self.time_dimension // 2) / denom)
@@ -79,21 +83,23 @@ class UNet(nn.Module):
         t = t.unsqueeze(-1) # Adds a dimension to our value
         t = self.encode_positional_information(t)
 
-        # Append class encoding if it exsists
+        # Append class encoding if it exists
         if y is not None:
             t += self.label_embedding(y)
         
-        # Forward pass
+        # Forward pass through the encoder
         encodings = [self.initial_in(x), ]
         for down, self_attention in self.encoder:
             _x = down(encodings[-1], t)
             _x = self_attention(_x)
             encodings.append(_x)
 
+        # Pass through bottleneck layers
         for i, bottleneck in enumerate(self.bottlenecks):
             encodings[-1] = bottleneck(encodings[-1])
 
         x = None
+        # Forward pass through the decoder
         for i, nodes in enumerate(self.decoder):
             up, self_attention = nodes
             if i == 0:
@@ -103,5 +109,6 @@ class UNet(nn.Module):
                 x = up(x, encodings[-2-i], t)
                 x = self_attention(x)
 
+        # Final output layer
         output = self.final_out(x)
         return output
