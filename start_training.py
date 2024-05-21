@@ -62,7 +62,9 @@ if __name__ == "__main__":
         trainer = Trainer(model, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
         trainer.fit(validation_logging_interval, image_logging_interval)
 
-        #### save model
+        #### save models
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
+        trainer.ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
     except KeyboardInterrupt:
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
+        trainer.ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)

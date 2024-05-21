@@ -6,11 +6,12 @@ import torch.nn as nn
 from tqdm import tqdm
 import wandb
 import numpy as np
+import copy
 
 
 class Trainer:
 
-    def __init__(self, model: DiffusionModel, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
+    def __init__(self, model: DiffusionModel, ema_decay: float, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
                  train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float,
                  validation: bool):
         """
@@ -31,6 +32,8 @@ class Trainer:
         - validation: Boolean to indicate if validation should be performed.
         """
         self.model = model
+        self.ema_model = copy.deepcopy(model)
+        self.ema_decay = ema_decay
         self.batch_size = batch_size
         self.epochs = epochs
         self.train_dataloader, self.test_dataloader = load_data(train_data, test_data, batch_size, num_workers)
@@ -58,6 +61,12 @@ class Trainer:
         # Log images to wandb
         wandb.log(
             {"sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
+        
+        # Sample images from the model
+        sampled_images = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+        # Log images to wandb
+        wandb.log(
+            {"sampled_images_ema": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
 
     def get_random_timesteps(self, n):
         """
@@ -87,6 +96,16 @@ class Trainer:
         sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.model.alpha_hat[t])[:, None, None, None]
         epsilon = torch.randn_like(x)
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
+    
+    def EMA(self):
+        """
+        Store Exponential Moving Average (EMA) of the weights during training
+        """
+        # https://arxiv.org/abs/2312.02696
+        for current_model_param, ema_model_param in zip(self.model.parameters(), self.ema_model.parameters()):
+            new = current_model_param.data
+            old = ema_model_param.data
+            ema_model_param.data = old * self.ema_decay + (1 - self.ema_decay) * new
 
     def train_one_step(self, loss):
         """
@@ -100,6 +119,9 @@ class Trainer:
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.scheduler.step()
+
+        # EMA update
+        self.EMA()
 
     def run_epoch(self, epoch, train=True):
         """
@@ -134,7 +156,7 @@ class Trainer:
                 loss = self.loss(noise, predicted_noise)
                 avg_loss += loss
             if train:
-                self.train_one_step(loss)
+                self.train_one_step(loss, epoch * len(dataloader) + i)
                 if i % 100 == 0:
                     wandb.log({"train_mse": loss.item(),
                                "learning_rate": self.scheduler.get_last_lr()[0]},
