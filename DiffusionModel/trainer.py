@@ -58,10 +58,10 @@ class Trainer:
         """
         Log sampled images to Weights and Biases (wandb)
         """
-        log_dict = { "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images] }
+        log_dict = { "sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images], }
 
         if model_images_ema is not None:
-            log_dict["sampled_images_ema"] = [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images_ema],
+            log_dict["sampled_images_ema"] = [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images_ema]
 
         # Log images to wandb
         wandb.log(log_dict)
@@ -204,7 +204,7 @@ class Trainer:
                     wandb.log({"train_mse": loss.item(),
                                "learning_rate": self.scheduler.get_last_lr()[0]},
                               step=epoch * len(dataloader) + i)
-
+            
         return avg_loss.mean().item()
 
     def fit(self, validation_logging_interval=5):
