@@ -35,14 +35,13 @@ class DiffusionModel(nn.Module):
         self.model = UNet(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, device)
         self.model = self.model.to(device)
         if compile_model:
-            print("Compiled model")
-            self.model = torch.compile(self.model, mode="reduce-overhead")
+            self.compile_model()
 
 
     def forward(self, x: torch.Tensor, t: torch.Tensor, y: torch.Tensor):
        return self.model(x, t, y)
     
-    
+
     def sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: float):
         """
         Sample images from diffusion model.
@@ -85,7 +84,12 @@ class DiffusionModel(nn.Module):
         return imgs
 
 
-    def load_model(self, file_name):
+    def compile_model(self):
+        print("Compiled model")
+        self.model = torch.compile(self.model, mode="reduce-overhead")
+
+
+    def load_model(self, file_name, compile_model=False):
         """
         Returns the state dict for optimizer and scaler
         Load them by:
@@ -96,6 +100,11 @@ class DiffusionModel(nn.Module):
         checkpoint = torch.load(file_path, map_location = lambda storage, loc: storage.cuda(self.device))
         self.model.load_state_dict(checkpoint["model"])
 
+        print("Loaded model!")
+
+        if compile_model:
+            self.compile_model()
+
         return checkpoint["optimizer"], checkpoint["scaler"]
 
 
@@ -104,7 +113,7 @@ class DiffusionModel(nn.Module):
         if not os.path.exists("./models/"):
             os.mkdir("./models/")
 
-        checkpoint = {"model": self.model.state_dict(),
+        checkpoint = {"model": getattr(self.model, '_orig_mod', self.model).state_dict(), #self.model.state_dict(),
                     "optimizer": optimizer.state_dict(),
                     "scaler": scaler.state_dict()}
 

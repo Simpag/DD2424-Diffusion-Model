@@ -17,7 +17,7 @@ if __name__ == "__main__":
     batch_size = 32 
     num_workers = 2
     lr = 5e-3
-    epochs = 500
+    epochs = 1
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     validation = True
     validation_logging_interval = 10
     image_logging_interval = 10
-    model_name = "linear_noise_schedule.pt"
+    model_name = "test.pt"
 
     print("Running on device: ", device)
 
