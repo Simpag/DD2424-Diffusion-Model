@@ -35,14 +35,14 @@ if __name__ == "__main__":
     beta_start = 1e-4
     beta_end = 2e-2
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    compile_model = False # Only available on linux, will be very slow at the start but will ramp up
+    compile_model = True # Only available on linux, will be very slow at the start but will ramp up
     validation = True
     validation_logging_interval = 1
     model_name = "test.pt"
 
     print("Running on device: ", device)
 
-    run = wandb.init(project="Diffusion Model", config={
+    run = wandb.init(project="Diffusion Model", entity="lni", config={
             "dataset": "CIFAR10",
             "learning_rate": lr,
             "ema_decay": ema_decay,
