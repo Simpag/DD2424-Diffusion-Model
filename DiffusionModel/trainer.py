@@ -6,12 +6,11 @@ import torch.nn as nn
 from tqdm import tqdm
 import wandb
 import numpy as np
-import copy
 
 
 class Trainer:
 
-    def __init__(self, model: DiffusionModel, ema_decay: float, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
+    def __init__(self, model: DiffusionModel, ema_model: DiffusionModel, ema_decay: float, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
                  train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float,
                  validation: bool):
         """
@@ -19,6 +18,8 @@ class Trainer:
 
         Parameters:
         - model: Instance of the DiffusionModel.
+        - ema_model: Copy of the DiffusionModel to store EMA, set to None if not using EMA
+        - ema_decay: EMA coefficient
         - batch_size: Size of the batch for training.
         - num_workers: Number of workers for data loading.
         - lr: Learning rate for the optimizer.
@@ -32,7 +33,7 @@ class Trainer:
         - validation: Boolean to indicate if validation should be performed.
         """
         self.model = model
-        self.ema_model = copy.deepcopy(model)
+        self.ema_model = ema_model
         self.ema_decay = ema_decay
         self.batch_size = batch_size
         self.epochs = epochs
@@ -62,6 +63,9 @@ class Trainer:
         wandb.log(
             {"sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
         
+        if self.ema_model is None:
+            return
+
         # Sample images from the model
         sampled_images = self.ema_model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
         # Log images to wandb
@@ -121,7 +125,8 @@ class Trainer:
         self.scheduler.step()
 
         # EMA update
-        self.EMA()
+        if self.ema_model is not None:
+            self.EMA()
 
     def run_epoch(self, epoch, train=True):
         """
@@ -156,7 +161,7 @@ class Trainer:
                 loss = self.loss(noise, predicted_noise)
                 avg_loss += loss
             if train:
-                self.train_one_step(loss, epoch * len(dataloader) + i)
+                self.train_one_step(loss)
                 if i % 100 == 0:
                     wandb.log({"train_mse": loss.item(),
                                "learning_rate": self.scheduler.get_last_lr()[0]},

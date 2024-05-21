@@ -1,3 +1,4 @@
+import copy
 import torch
 import numpy as np
 import wandb
@@ -15,10 +16,10 @@ if __name__ == "__main__":
     wandb.login()
 
     batch_size = 32 
-    num_workers = 2
-    lr = 5e-3
+    num_workers = 3
+    lr = 5e-4
     ema_decay = 0.999
-    epochs = 1
+    epochs = 30
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -45,6 +46,7 @@ if __name__ == "__main__":
     run = wandb.init(project="Diffusion Model", config={
             "dataset": "CIFAR10",
             "learning_rate": lr,
+            "ema_decay": ema_decay,
             "batch size": batch_size,
             "epochs": epochs,
             "cfg_strength": cfg_strength,
@@ -59,13 +61,18 @@ if __name__ == "__main__":
     )
 
     try:
-        model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model)
-        trainer = Trainer(model, ema_decay, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
+        model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model=False)
+        ema_model = copy.deepcopy(model)
+
+        if compile_model:
+            model.compile_model()
+
+        trainer = Trainer(model, ema_model, ema_decay, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
         trainer.fit(validation_logging_interval, image_logging_interval)
 
         #### save models
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
-        trainer.ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
+        ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
     except KeyboardInterrupt:
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
-        trainer.ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
+        ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)

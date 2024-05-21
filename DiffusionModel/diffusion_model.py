@@ -7,9 +7,10 @@ import wandb
 from UNet.unet import UNet
 
 class DiffusionModel(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, noise_steps: int, beta_start: float, beta_end: float, device: str, compile_model=True) -> None:
+    def __init__(self, in_channels: int, out_channels: int, encoder_decoder_layers: list, bottleneck_layers: list, UNet_embedding_dimensions: int, time_dimension: int, num_classes: int, noise_steps: int, beta_start: float, beta_end: float, device: str, compile_model=False) -> None:
         """
         Diffusion Model module
+        Do not compile the model if you're going to load a model later
 
         in_channels                 := Number of input channels
         out_channels                := Number of output channels
@@ -19,7 +20,7 @@ class DiffusionModel(nn.Module):
         time_dimension              := Time embedding dimension 
         num_classes                 := Number of classes in the dataset
         device                      := Which device the model is running on
-        compile_model               := If it should compile the model or not
+        compile_model               := If it should compile the model or not (only works on linux, improves performance by about 100%)
 
         Example usage:
         model = DiffusionModel(in_channels=3, out_channels=3, encoder_decoder_layers=(64,128,256), bottleneck_layers=(512,512), UNet_embedding_dimensions=256, time_dimension=256, num_classes=10, noise_steps=1000, beta_start=1e-4, beta_end=2e-2, device="cpu")
