@@ -5,6 +5,12 @@ import torch.nn.functional as F
 
 class SelfAttentionBlock(nn.Module):
     def __init__(self, channels):
+        """
+        Initializes the SelfAttentionBlock with multi-head attention and normalization layers.
+
+        Parameters:
+            channels := Number of input channels
+        """
         super().__init__()
         self.channels = channels        
         self.mha = nn.MultiheadAttention(channels, 4, batch_first=True)
@@ -18,6 +24,15 @@ class SelfAttentionBlock(nn.Module):
 
 
     def forward(self, x: torch.Tensor):
+        """
+        Forward pass for the SelfAttentionBlock.
+
+        Parameters:
+            x := Input tensor of shape (batch_size, channels, height, width)
+
+        Returns:
+            Tensor after applying self-attention and transformation layers.
+        """
         size = x.shape[-1]
         x = x.view(-1, self.channels, size * size).swapaxes(1, 2)
         x_ln = self.ln(x)
@@ -29,6 +44,15 @@ class SelfAttentionBlock(nn.Module):
 
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, intermediate_channels=None, skip_connection=False):
+        """
+        Initializes the ConvBlock with two convolutional layers and optional skip connection.
+
+        Parameters:
+            in_channels          := Number of input channels
+            out_channels         := Number of output channels
+            intermediate_channels:= Number of intermediate channels (optional)
+            skip_connection      := Whether to use skip connection (default: False)
+        """
         super().__init__()
         self.skip_connection = skip_connection
 
@@ -45,6 +69,15 @@ class ConvBlock(nn.Module):
 
 
     def forward(self, x):
+        """
+        Forward pass for the ConvBlock.
+
+        Parameters:
+            x := Input tensor
+
+        Returns:
+            Tensor after applying convolutional layers and optional skip connection.
+        """
         if self.skip_connection:
             return F.gelu(x + self.double_conv(x))
         else:
@@ -53,6 +86,14 @@ class ConvBlock(nn.Module):
 
 class DownBlock(nn.Module):
     def __init__(self, in_channels, out_channels, embedding_dimension):
+        """
+        Initializes the DownBlock with max-pooling and convolutional layers, along with embedding layer.
+
+        Parameters:
+            in_channels        := Number of input channels
+            out_channels       := Number of output channels
+            embedding_dimension:= Dimension of the embedding vector
+        """
         super().__init__()
         self.maxpool_conv = nn.Sequential(
             nn.MaxPool2d(2),
@@ -70,6 +111,16 @@ class DownBlock(nn.Module):
 
 
     def forward(self, x, t):
+        """
+        Forward pass for the DownBlock.
+
+        Parameters:
+            x := Input tensor
+            t := Embedding tensor
+
+        Returns:
+            Tensor after applying down-sampling, convolutional layers, and embedding addition.
+        """
         x = self.maxpool_conv(x)
         emb = self.embedding_layer(t)[:, :, None, None].repeat(1, 1, x.shape[-2], x.shape[-1])
         return x + emb
@@ -77,6 +128,14 @@ class DownBlock(nn.Module):
 
 class UpBlock(nn.Module):
     def __init__(self, in_channels, out_channels, embedding_dimension):
+        """
+        Initializes the UpBlock with up-sampling and convolutional layers, along with embedding layer.
+
+        Parameters:
+            in_channels        := Number of input channels
+            out_channels       := Number of output channels
+            embedding_dimension:= Dimension of the embedding vector
+        """
         super().__init__()
 
         self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
@@ -95,6 +154,17 @@ class UpBlock(nn.Module):
 
 
     def forward(self, x, skip_x, t):
+        """
+        Forward pass for the UpBlock.
+
+        Parameters:
+            x      := Input tensor
+            skip_x := Skip connection tensor
+            t      := Embedding tensor
+
+        Returns:
+            Tensor after applying up-sampling, concatenation with skip connection, convolutional layers, and embedding addition.
+        """
         x = self.up(x)
         x = torch.cat([skip_x, x], dim=1) # add the skip connection
         x = self.conv(x)
