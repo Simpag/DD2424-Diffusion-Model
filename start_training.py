@@ -72,6 +72,7 @@ if __name__ == "__main__":
         #### save models
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
         ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
-    except KeyboardInterrupt:
+    except Exception as e:
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
         ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
+        print(e)

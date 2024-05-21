@@ -92,7 +92,7 @@ class Trainer:
         real_images_sample = torch.from_numpy(real_images_sample).permute((0,3,1,2)).to(self.device)
         assert real_images_sample.shape == (len(sampled_images), self.img_channels, self.img_size, self.img_size), f"Wrong image size from dataset, should be {(len(sampled_images), self.img_channels, self.img_size, self.img_size)}, got {real_images_sample.shape}"
 
-        fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images_sample, normalized_images=False)
+        fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images_sample, num_labels=self.num_classes, normalized_images=False)
         log_dict = {
                     "val_mse": avg_loss,
                     "val_fid": fid_score,
@@ -100,7 +100,7 @@ class Trainer:
                 }
         
         if sampled_images_ema is not None:
-            fid_score_ema, is_score_ema, is_deviation_ema = evaluate_generator(generated_images=sampled_images_ema, real_images=real_images_sample, normalized_images=False)
+            fid_score_ema, is_score_ema, is_deviation_ema = evaluate_generator(generated_images=sampled_images_ema, real_images=real_images_sample, num_labels=self.num_classes, normalized_images=False)
             log_dict["val_fid_ema"] = fid_score_ema
             log_dict["val_is_ema"] = is_score_ema
 
