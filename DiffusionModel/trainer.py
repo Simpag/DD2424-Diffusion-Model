@@ -11,7 +11,25 @@ import numpy as np
 class Trainer:
 
     def __init__(self, model: DiffusionModel, batch_size: int, num_workers: int, lr: float, device: str, epochs: int,
-                 train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float, validation: bool):
+                 train_data: object, test_data: object, use_amp: bool, img_size: int, cfg_strength: float,
+                 validation: bool):
+        """
+        Initialize the Trainer class with the given parameters.
+
+        Parameters:
+        - model: Instance of the DiffusionModel.
+        - batch_size: Size of the batch for training.
+        - num_workers: Number of workers for data loading.
+        - lr: Learning rate for the optimizer.
+        - device: Device to run the model on (e.g., 'cuda' or 'cpu').
+        - epochs: Number of training epochs.
+        - train_data: Training dataset.
+        - test_data: Testing dataset.
+        - use_amp: Boolean to use Automatic Mixed Precision (AMP) or not.
+        - img_size: Size of the input images.
+        - cfg_strength: Configuration strength for sampling.
+        - validation: Boolean to indicate if validation should be performed.
+        """
         self.model = model
         self.batch_size = batch_size
         self.epochs = epochs
@@ -29,35 +47,71 @@ class Trainer:
         self.validation = validation
         self.num_classes = len(train_data.classes)
 
+
     def log_images(self):
-        "Log images to wandb and save them to disk"
+        """
+        Log sampled images to Weights and Biases (wandb)
+        """
         labels = torch.arange(self.num_classes).long().to(self.device)
-        # sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: int)
+        # Sample images from the model
         sampled_images = self.model.sample(self.img_size, self.img_channels, labels, self.cfg_strength)
+        # Log images to wandb
         wandb.log(
             {"sampled_images": [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in sampled_images]})
 
+    def get_random_timesteps(self, n):
+        """
+        Generate random timesteps for noise addition.
 
-    def sample_timesteps(self, n):
+        Parameters:
+        - n: Number of random timesteps to generate.
+
+        Returns:
+        - Random timesteps tensor.
+        """
         return torch.randint(low=1, high=self.model.noise_steps, size=(n,))
 
 
-    def noise_images(self, x, t):
-        "Add noise to images at instant t"
+    def add_noise_to_images(self, x, t):
+        """
+        Adds noise to images for a certain timestep in the noise scheduler.
+
+        Parameters:
+        - x: Input images.
+        - t: Timesteps for noise addition.
+
+        Returns:
+        - Noisy images and the added noise.
+        """
         sqrt_alpha_hat = torch.sqrt(self.model.alpha_hat[t])[:, None, None, None]
         sqrt_one_minus_alpha_hat = torch.sqrt(1 - self.model.alpha_hat[t])[:, None, None, None]
         epsilon = torch.randn_like(x)
         return sqrt_alpha_hat * x + sqrt_one_minus_alpha_hat * epsilon, epsilon
 
+    def train_one_step(self, loss):
+        """
+        Perform a single training step.
 
-    def train_step(self, loss):
+        Parameters:
+        - loss: Computed loss for backpropagation.
+        """
         self.optimizer.zero_grad()
         self.scaler.scale(loss).backward()
         self.scaler.step(self.optimizer)
         self.scaler.update()
         self.scheduler.step()
 
-    def train_epoch(self, epoch, train=True):
+    def run_epoch(self, epoch, train=True):
+        """
+        Run a single epoch of training or validation.
+
+        Parameters:
+        - epoch: Current epoch number.
+        - train: Boolean indicating whether to train or validate.
+
+        Returns:
+        - Average loss for the epoch.
+        """
         avg_loss = 0.
         dataloader = None
         if train:
@@ -69,36 +123,41 @@ class Trainer:
 
         for i, (images, labels) in enumerate(tqdm(dataloader, "Training" if train else "Validation", position=1)):
             with torch.autocast("cuda", enabled=self.use_amp) and (
-            torch.inference_mode() if not train else torch.enable_grad()):
+                    torch.inference_mode() if not train else torch.enable_grad()):
                 images = images.to(self.device)
                 labels = labels.to(self.device)
-                t = self.sample_timesteps(images.shape[0]).to(self.device)
-                x_t, noise = self.noise_images(images, t)
+                t = self.get_random_timesteps(images.shape[0]).to(self.device)
+                x_t, noise = self.add_noise_to_images(images, t)
                 if np.random.random() < 0.1:
                     labels = None
                 predicted_noise = self.model(x_t, t, labels)
                 loss = self.loss(noise, predicted_noise)
                 avg_loss += loss
             if train:
-                self.train_step(loss)
+                self.train_one_step(loss)
                 if i % 100 == 0:
                     wandb.log({"train_mse": loss.item(),
                                "learning_rate": self.scheduler.get_last_lr()[0]},
                               step=epoch * len(dataloader) + i)
-                    
+
         return avg_loss.mean().item()
 
-    def fit(self, validation_logging_interval = 5, image_logging_interval = 100):
-        for epoch in tqdm(range(self.epochs), "Epoch", position=0):
-            self.train_epoch(epoch, train=True)
+    def fit(self, validation_logging_interval=5, image_logging_interval=100):
+        """
+        Fit the model to the training data.
 
-            #  validation
+        Parameters:
+        - validation_logging_interval: Interval for logging validation metrics.
+        - image_logging_interval: Interval for logging sampled images.
+        """
+        for epoch in tqdm(range(self.epochs), "Epoch", position=0):
+            self.run_epoch(epoch, train=True)
+
+            # Perform validation at specified intervals
             if self.validation and epoch % validation_logging_interval == 0:
-                avg_loss = self.train_epoch(epoch, train=False)
+                avg_loss = self.run_epoch(epoch, train=False)
                 wandb.log({"val_mse": avg_loss})
 
-            #  log predictions
+            # Log sampled images at specified intervals
             if epoch % image_logging_interval == 0:
                 self.log_images()
-        
-
