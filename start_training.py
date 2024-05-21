@@ -18,7 +18,7 @@ if __name__ == "__main__":
     batch_size = 32 
     num_workers = 3
     lr = 5e-4
-    ema_decay = 0.999
+    ema_decay = 0.9999
     epochs = 2
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
