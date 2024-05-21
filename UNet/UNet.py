@@ -9,7 +9,7 @@ class UNet(nn.Module):
         """
         in_channels                 := Number of input channels
         out_channels                := Number of output channels
-        encoder_decoder_layers      := Three values for the encoder/decoder
+        encoder_decoder_layers      := Four values for the encoder/decoder
         bottleneck_layers           := Bottleneck dimension, at least one value
         UNet_embedding_dimensions   := Embedding dimensions for Up and Down modules
         time_dimension              := Time embedding dimension 
@@ -24,11 +24,12 @@ class UNet(nn.Module):
         self.label_embedding = nn.Embedding(num_classes, time_dimension)
 
         if encoder_decoder_layers:
-            a, b, c = encoder_decoder_layers
+            a, b, c, d = encoder_decoder_layers
         else:
             a = 64
             b = 128
             c = 256
+            d = 512
 
         # Encoder TODO: Upgrade so we can have variable amount of down and self attention layers...
         self.initial_in     = ConvBlock(in_channels, a)
@@ -36,25 +37,29 @@ class UNet(nn.Module):
         self_attention_1    = SelfAttentionBlock(b)
         down_2              = DownBlock(b, c, UNet_embedding_dimensions)
         self_attention_2    = SelfAttentionBlock(c)
-        down_3              = DownBlock(c, c, UNet_embedding_dimensions)
-        self_attention_3    = SelfAttentionBlock(c)
-        self.encoder        = nn.ModuleList([nn.ModuleList([down_1, self_attention_1]), nn.ModuleList([down_2, self_attention_2]), nn.ModuleList([down_3, self_attention_3])])
+        down_3              = DownBlock(c, d, UNet_embedding_dimensions)
+        self_attention_3    = SelfAttentionBlock(d)
+        down_4              = DownBlock(d, d, UNet_embedding_dimensions)
+        self_attention_4    = SelfAttentionBlock(d)
+        self.encoder        = nn.ModuleList([nn.ModuleList([down_1, self_attention_1]), nn.ModuleList([down_2, self_attention_2]), nn.ModuleList([down_3, self_attention_3]), nn.ModuleList([down_4, self_attention_4])])
 
         # Bottle neck
-        self.bottlenecks    = nn.ModuleList([ConvBlock(c, bottleneck_layers[0]),])
-        for i in range(1, len(bottleneck_layers)-1):
+        self.bottlenecks    = nn.ModuleList([ConvBlock(d, bottleneck_layers[0]),])
+        #self.bottlenecks = nn.ModuleList()
+        for i in range(len(bottleneck_layers)):
             self.bottlenecks.append(ConvBlock(bottleneck_layers[i], bottleneck_layers[i]))
-
-        self.bottlenecks.append(ConvBlock(bottleneck_layers[-1], c))
+        self.bottlenecks.append(ConvBlock(bottleneck_layers[-1], d))
 
         # Decoder
-        up_1                = UpBlock(2*c, b, UNet_embedding_dimensions) # Input to up is 2x since we have skip connection
-        self_attention_4    = SelfAttentionBlock(b)
-        up_2                = UpBlock(2*b, a, UNet_embedding_dimensions)
-        self_attention_5    = SelfAttentionBlock(a)
-        up_3                = UpBlock(2*a, a, UNet_embedding_dimensions)
-        self_attention_6    = SelfAttentionBlock(a)
-        self.decoder        = nn.ModuleList([nn.ModuleList([up_1, self_attention_4]), nn.ModuleList([up_2, self_attention_5]), nn.ModuleList([up_3, self_attention_6])])
+        up_1                = UpBlock(2*d, c, UNet_embedding_dimensions) # Input to up is 2x since we have skip connection
+        self_attention_5    = SelfAttentionBlock(c)
+        up_2                = UpBlock(2*c, b, UNet_embedding_dimensions)
+        self_attention_6    = SelfAttentionBlock(b)
+        up_3                = UpBlock(2*b, a, UNet_embedding_dimensions)
+        self_attention_7    = SelfAttentionBlock(a)
+        up_4                = UpBlock(2*a, a, UNet_embedding_dimensions)
+        self_attention_8    = SelfAttentionBlock(a)
+        self.decoder        = nn.ModuleList([nn.ModuleList([up_1, self_attention_5]), nn.ModuleList([up_2, self_attention_6]), nn.ModuleList([up_3, self_attention_7]),nn.ModuleList([up_4, self_attention_8])])
         self.final_out      = nn.Conv2d(a, out_channels, kernel_size=1)
 
 
@@ -85,7 +90,7 @@ class UNet(nn.Module):
             _x = self_attention(_x)
             encodings.append(_x)
 
-        for bottleneck in self.bottlenecks:
+        for i, bottleneck in enumerate(self.bottlenecks):
             encodings[-1] = bottleneck(encodings[-1])
 
         x = None

@@ -14,8 +14,8 @@ if __name__ == "__main__":
     cfg_strength = 3
     in_channels = train_data.data[0].shape[-1]
     out_channels = train_data.data[0].shape[-1] 
-    encoder_decoder_layers = (64,128,256) 
-    bottleneck_layers = (512,1024,512)
+    encoder_decoder_layers = (64,128,256,512) 
+    bottleneck_layers = (1024,)
     UNet_embedding_dimensions = 256 
     time_dimension = 256
     num_classes = len(train_data.classes)
