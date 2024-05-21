@@ -19,7 +19,7 @@ if __name__ == "__main__":
     num_workers = 3
     lr = 5e-4
     ema_decay = 0.9999
-    epochs = 2
+    epochs = 500
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     compile_model = True # Only available on linux, will be very slow at the start but will ramp up
     validation = True
-    validation_logging_interval = 1
+    validation_logging_interval = 10
     model_name = "test.pt"
 
     print("Running on device: ", device)
