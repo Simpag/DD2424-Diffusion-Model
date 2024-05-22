@@ -28,7 +28,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Set model name to load, None if not loading
-    model_name = None
+    model_name = "ema_test.pt"
 
     # Set how many times we sample each class
     num_samples = 1

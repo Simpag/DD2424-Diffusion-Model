@@ -1,0 +1,86 @@
+import copy
+import torch
+import numpy as np
+import wandb
+import platform
+
+from DiffusionModel.diffusion_model import DiffusionModel
+from DiffusionModel.trainer import Trainer
+from utils import cifar_10_transformed, plot_images
+
+if __name__ == "__main__":
+    if platform.system() == 'Linux':
+        print("Setting high float32 matmul precision")
+        torch.set_float32_matmul_precision('high')
+
+    wandb.login()
+
+    batch_size = 24 
+    num_workers = 3
+    lr = 2e-4*0.8**2
+    ema_decay = 0.9999
+    epochs = 300
+    train_data, test_data = cifar_10_transformed()
+    use_amp = True 
+    img_size = train_data.data[0].shape[0]
+    cfg_strength = 3
+    in_channels = train_data.data[0].shape[-1]
+    out_channels = train_data.data[0].shape[-1] 
+    encoder_decoder_layers = (64,128,256,512) 
+    bottleneck_layers = (1024,)
+    UNet_embedding_dimensions = 256 
+    time_dimension = 256
+    num_classes = len(train_data.classes)
+    noise_steps = 1000
+    beta_start = 1e-4
+    beta_end = 2e-2
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    compile_model = True # Only available on linux, will be very slow at the start but will ramp up
+    validation = True
+    validation_logging_interval = 10
+    model_name = "constantLR.pt"
+    new_model_name = "constantLR_continue.pt"
+    train_step = 100 # train step to continue from
+
+    print("Running on device: ", device)
+
+    run = wandb.init(project="Diffusion Model", entity="lni", config={
+            "dataset": "CIFAR10",
+            "learning_rate": lr,
+            "ema_decay": ema_decay,
+            "batch_size": batch_size,
+            "epochs": epochs,
+            "cfg_strength": cfg_strength,
+            "noise_steps": noise_steps,
+            "beta_start": beta_start,
+            "beta_end": beta_end,
+            "encoder_decoder_layers": encoder_decoder_layers,
+            "bottleneck_layers": bottleneck_layers,
+            "UNet_embedding_dimensions": UNet_embedding_dimensions,
+            "time_dimension": time_dimension,
+        }
+    )
+
+    try:
+        model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model=False)
+        ema_model = copy.deepcopy(model)
+        
+        # Load models
+        optimizer, scaler = model.load_model(model_name)
+        ema_model.load_model("ema_" + model_name)
+
+        if compile_model:
+            model.compile_model()
+
+        trainer = Trainer(model, ema_model, ema_decay, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
+        trainer.optimizer.load_state_dict(optimizer)
+        trainer.scaler.load_state_dict(scaler)
+        trainer.fit(validation_logging_interval)
+
+        #### save models
+        model.save_model(new_model_name, trainer.optimizer, trainer.scaler)
+        ema_model.save_model("ema_" + new_model_name, trainer.optimizer, trainer.scaler)
+    except (KeyboardInterrupt, Exception) as e:
+        model.save_model(new_model_name, trainer.optimizer, trainer.scaler)
+        ema_model.save_model("ema_" + new_model_name, trainer.optimizer, trainer.scaler)
+        print(e)

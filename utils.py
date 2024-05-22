@@ -109,5 +109,5 @@ def plot_images(images, rows=None, cols=None, labels=None):
             #    torch.cat([i for i in images.cpu()], dim=-1),
             #], dim=-2).permute(1, 2, 0).cpu())
 
-    plt.tight_layout()
+    plt.subplots_adjust(wspace=0, hspace=0)  # Adjust these values as needed
     plt.show()
