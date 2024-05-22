@@ -75,6 +75,7 @@ if __name__ == "__main__":
         trainer = Trainer(model, ema_model, ema_decay, batch_size, num_workers, lr, device, epochs, train_data, test_data, use_amp, img_size, cfg_strength, validation)
         trainer.optimizer.load_state_dict(optimizer)
         trainer.scaler.load_state_dict(scaler)
+        trainer.train_step = train_step
         trainer.fit(validation_logging_interval)
 
         #### save models
