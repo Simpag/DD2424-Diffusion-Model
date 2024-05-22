@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     batch_size = 24 
     num_workers = 3
-    lr = 2e-4*0.8**2
+    lr = 2e-4
     ema_decay = 0.9999
     epochs = 300
     train_data, test_data = cifar_10_transformed()
@@ -40,8 +40,8 @@ if __name__ == "__main__":
     validation_logging_interval = 10
     model_name = "constantLR.pt"
     new_model_name = "constantLR_continue.pt"
-    train_step = 100 # train step to continue from
-
+    train_step = 625200 # train step to continue from
+    
     print("Running on device: ", device)
 
     run = wandb.init(project="Diffusion Model", entity="lni", config={

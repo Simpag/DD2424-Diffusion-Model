@@ -15,11 +15,11 @@ if __name__ == "__main__":
 
     wandb.login()
 
-    batch_size = 32 
+    batch_size = 24 
     num_workers = 3
-    lr = 5e-4
+    lr = 2e-4
     ema_decay = 0.9999
-    epochs = 500
+    epochs = 300
     train_data, test_data = cifar_10_transformed()
     use_amp = True 
     img_size = train_data.data[0].shape[0]
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     compile_model = True # Only available on linux, will be very slow at the start but will ramp up
     validation = True
     validation_logging_interval = 10
-    model_name = "test.pt"
+    model_name = "constantLR.pt"
 
     print("Running on device: ", device)
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
             "dataset": "CIFAR10",
             "learning_rate": lr,
             "ema_decay": ema_decay,
-            "batch size": batch_size,
+            "batch_size": batch_size,
             "epochs": epochs,
             "cfg_strength": cfg_strength,
             "noise_steps": noise_steps,
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         #### save models
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
         ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
-    except Exception as e:
+    except (KeyboardInterrupt, Exception) as e:
         model.save_model(model_name, trainer.optimizer, trainer.scaler)
         ema_model.save_model("ema_" + model_name, trainer.optimizer, trainer.scaler)
         print(e)

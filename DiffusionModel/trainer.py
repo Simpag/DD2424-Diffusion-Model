@@ -45,13 +45,16 @@ class Trainer:
         self.device = device
         self.use_amp = use_amp
         self.scaler = torch.cuda.amp.GradScaler(enabled=self.use_amp)
-        self.scheduler = optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=lr,
-                                                       steps_per_epoch=len(self.train_dataloader), epochs=self.epochs)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=len(self.train_dataloader)*100, gamma=0.8)
+        #self.scheduler = optim.lr_scheduler.OneCycleLR(self.optimizer, max_lr=lr,
+        #                                               steps_per_epoch=len(self.train_dataloader), epochs=self.epochs)
         self.img_size = img_size
         self.img_channels = train_data.data[0].shape[-1]
         self.cfg_strength = cfg_strength
         self.validation = validation
         self.num_classes = len(train_data.classes)
+
+        self.train_step = 0
 
 
     def log_images(self, model_images, model_images_ema):
@@ -64,7 +67,7 @@ class Trainer:
             log_dict["sampled_images_ema"] = [wandb.Image(img.permute(1, 2, 0).squeeze().cpu().numpy()) for img in model_images_ema]
 
         # Log images to wandb
-        wandb.log(log_dict)
+        wandb.log(log_dict, step=self.train_step-1)
 
 
     def log_validation(self, avg_loss):
@@ -104,7 +107,7 @@ class Trainer:
             log_dict["val_fid_ema"] = fid_score_ema
             log_dict["val_is_ema"] = is_score_ema
 
-        wandb.log(log_dict)
+        wandb.log(log_dict, step=self.train_step-1)
 
         # Log sampled images at specified intervals
         self.log_images(sampled_images[:self.num_classes, :, :, :], sampled_images_ema[:self.num_classes, :, :, :] if sampled_images_ema is not None else None)
@@ -147,7 +150,10 @@ class Trainer:
         for current_model_param, ema_model_param in zip(self.model.parameters(), self.ema_model.parameters()):
             new = current_model_param.data
             old = ema_model_param.data
-            ema_model_param.data = old * self.ema_decay + (1 - self.ema_decay) * new
+            if self.train_step < 5_000:
+                ema_model_param.data = new
+            else:
+                ema_model_param.data = old * self.ema_decay + (1 - self.ema_decay) * new
 
     def train_one_step(self, loss):
         """
@@ -198,12 +204,15 @@ class Trainer:
                 predicted_noise = self.model(x_t, t, labels)
                 loss = self.loss(noise, predicted_noise)
                 avg_loss += loss
+
             if train:
                 self.train_one_step(loss)
                 if i % 100 == 0:
                     wandb.log({"train_mse": loss.item(),
-                               "learning_rate": self.scheduler.get_last_lr()[0]},
-                              step=epoch * len(dataloader) + i)
+                            "learning_rate": self.scheduler.get_last_lr()[0]},
+                            step=self.train_step)
+                    
+                self.train_step += 1
             
         return avg_loss.mean().item()
 
