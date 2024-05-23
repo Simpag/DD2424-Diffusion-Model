@@ -17,14 +17,19 @@ def evaluate_generator(generated_images: torch.Tensor, real_images: torch.Tensor
 
     fid = FrechetInceptionDistance(input_img_size=image_size, normalize=normalized_images).set_dtype(torch.float64).to(device)
 
-    for batch in tqdm(range(len(generated_images)//num_labels), "Calculating score"):
+    for batch in tqdm(range(len(generated_images)//num_labels), "FID calculating score"):
         fid.update(imgs=real_images[batch*num_labels:(batch+1)*num_labels,:,:,:], real=True)
         fid.update(imgs=generated_images[batch*num_labels:(batch+1)*num_labels,:,:,:], real=False)
 
     fid_score = fid.compute()
+    print("FID: ", fid_score.item())
 
     inception = InceptionScore(normalize=normalized_images).to(device)
-    inception.update(generated_images)
+
+    for batch in tqdm(range(len(generated_images)//num_labels), "IS calculating score"):
+        inception.update(generated_images[batch*num_labels:(batch+1)*num_labels,:,:,:])
+    
     inception_score, inception_deviation = inception.compute()
+    print("IS: ", inception_score.item(), " : ", inception_deviation.item())
 
     return (fid_score.item(), inception_score.item(), inception_deviation.item())

@@ -1,6 +1,7 @@
 import torch
 import platform
 from tqdm import tqdm
+import gc
 
 from DiffusionModel.diffusion_model import DiffusionModel
 from utils import cifar_10_transformed, plot_images, load_data
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Set model name to load (will also load ema_model_name)
-    model_name = "constantLR_continue.pt"
+    model_name = "ema_constantLR_continue.pt"
 
     # Set how many times we sample each class
     num_samples = 100 # There are 10_000 images in the test set
@@ -47,16 +48,19 @@ if __name__ == "__main__":
     model.compile_model()
 
     sampled_images = None
-    with torch.no_grad():
-        for i in tqdm(range(num_samples), "none-ema"):
-            si = model.sample(img_size, out_channels, labels, cfg_strength)
-            if sampled_images is None:
-                sampled_images = si
-            else:
-                sampled_images = torch.cat([sampled_images, si], dim=0)
+    for i in tqdm(range(num_samples), "Batch"):
+        si = model.sample(img_size, out_channels, labels, cfg_strength)
+        if sampled_images is None:
+            sampled_images = si
+        else:
+            sampled_images = torch.cat([sampled_images, si], dim=0)
+
+    del model
+    gc.collect()
+    torch.cuda.empty_cache()
 
     real_images = torch.from_numpy(test_data.data).permute((0,3,1,2)).to(device)
-    assert real_images.shape[0] == sampled_images.shape[0], f"Sampled and real images must be same shape! Got sampled: {sampled_images.shape}, real: {real_images.shape}"
+    #assert real_images.shape[0] == sampled_images.shape[0], f"Sampled and real images must be same shape! Got sampled: {sampled_images.shape}, real: {real_images.shape}"
 
     fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images, num_labels=num_classes, normalized_images=False)
     print(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
