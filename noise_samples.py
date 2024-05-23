@@ -29,14 +29,19 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # Set model name to load, None if not loading
-    model_name = "ema_constantLR.pt"
+    model_name = "ema_constantLR_continue.pt"
 
     # Set how many times we sample each class
     num_samples = 1
 
     # Set when to sample (reversed order, 1 is last step)
     #noise_samples = [1, 50, 100, 200, 400, 600, 800, 999]
-    noise_samples = np.round(np.logspace(0,3,10))-1
+    noise_samples = np.rint(np.logspace(0,3,10))-1
+    noise_samples = [1000, 800, 500, 300, 200, 100, 50, 25, 10, 1]
+    noise_samples = np.arange(0,1100,100)
+    noise_samples = [1, 25, 50, 100, 200, 300, 400, 500, 600, 1000]
+    noise_samples = list(reversed(noise_samples))
+    print(noise_samples)
 
     model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model=False)
 
@@ -101,10 +106,11 @@ if __name__ == "__main__":
             i += 1
 
             if row == 0:
-                axs[row][col].set_title(int(noise_samples[col])) # Set the title to the label
+                axs[row][col].set_title(noise_steps-int(noise_samples[col])+1 if noise_samples[col] == 1000 or noise_samples[col] == 1 else noise_steps-int(noise_samples[col])) # Set the title to the label
 
             axs[row][col].axis('off')
 
     # Adjust the spacing between subplots
     plt.subplots_adjust(wspace=0, hspace=0)  # Adjust these values as needed
+    plt.savefig("image.png")
     plt.show()

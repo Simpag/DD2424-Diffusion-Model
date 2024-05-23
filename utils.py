@@ -62,7 +62,7 @@ def load_data(train_data, test_data, batch_size, num_workers):
 
     return dataloader_train, dataloader_test
 
-def plot_images(images, rows=None, cols=None, labels=None):
+def plot_images(images, rows=None, cols=None, labels=None, save_file=None):
     """
     Plots a grid of images using Matplotlib.
 
@@ -78,7 +78,7 @@ def plot_images(images, rows=None, cols=None, labels=None):
 
     if type(images) == np.ndarray:
         # Create subplots for numpy array images
-        fig, axes = plt.subplots(rows, cols, figsize=(8, 8))
+        fig, axes = plt.subplots(rows, cols)
 
         # Flatten the axes array for easy iteration
         axes = axes.flatten()
@@ -94,7 +94,7 @@ def plot_images(images, rows=None, cols=None, labels=None):
     else:
         #plt.figure(figsize=(16, 16))
         # Create subplots for torch tensors
-        fig, axs = plt.subplots(rows, cols, figsize=(16, 2*rows))
+        fig, axs = plt.subplots(rows, cols, figsize=(16, 16))
 
         # Flatten the axes array for easy iteration
         axs = axs.flatten()
@@ -110,4 +110,8 @@ def plot_images(images, rows=None, cols=None, labels=None):
             #], dim=-2).permute(1, 2, 0).cpu())
 
     plt.subplots_adjust(wspace=0, hspace=0)  # Adjust these values as needed
+
+    if save_file is not None:
+        plt.savefig(save_file)
+
     plt.show()

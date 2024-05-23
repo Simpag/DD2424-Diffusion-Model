@@ -49,7 +49,7 @@ class DiffusionModel(nn.Module):
         return self.model(x, t, y)
     
 
-    def sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: float):
+    def sample(self, image_size: int, image_channels: int, labels: list, cfg_strength: float, unconditionally=False):
         """
         Sample images from diffusion model.
 
@@ -62,10 +62,16 @@ class DiffusionModel(nn.Module):
         # Number of samples to generate
         num_samples = len(labels)
         self.model.eval()
+
+        if unconditionally:
+            labels = None
+            cfg_strength = 0
+
         with torch.inference_mode():
             # Initial random noise image
             z = torch.randn((num_samples, image_channels, image_size, image_size)).to(self.device) # initial random noise image
             for i in tqdm(reversed(range(1, self.noise_steps)), f"Generating images ({num_samples})", total=self.noise_steps, position=2):
+                torch.compiler.cudagraph_mark_step_begin()
                 # Time step i for every noise step
                 t = (torch.ones(num_samples) * i).long().to(self.device) # time step i for every noise step
                 conditional_predicted_noise = self.model(z, t, labels)

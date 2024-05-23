@@ -26,26 +26,24 @@ if __name__ == "__main__":
     beta_start = 1e-4
     beta_end = 2e-2
     device = "cuda" if torch.cuda.is_available() else "cpu"
+    compile_model = False
+    unconditionally = False
     
     # Set model name to load, None if not loading
-    model_name = "ema_test.pt"
+    model_name = "constantLR_continue.pt"
 
     # Set how many times we sample each class
-    num_samples = 1
+    num_samples = 10
 
     model = DiffusionModel(in_channels, out_channels, encoder_decoder_layers, bottleneck_layers, UNet_embedding_dimensions, time_dimension, num_classes, noise_steps, beta_start, beta_end, device, compile_model=False)
 
-    #### save model
     if model_name is not None:
         model.load_model(model_name)
 
+    if compile_model:
+        model.compile_model()
+
     labels = torch.arange(num_classes).repeat(num_samples).long().to(device)
-    sampled_images = model.sample(img_size, out_channels, labels, cfg_strength)
+    sampled_images = model.sample(img_size, out_channels, labels, cfg_strength, unconditionally=unconditionally)
 
-    real_images_sample = np.random.choice(len(test_data.data), len(sampled_images))
-    real_iamges_sample = test_data.data[real_images_sample, :, :, :]
-    fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=torch.from_numpy(real_iamges_sample).permute((0,3,1,2)).to(device), num_labels=num_classes, normalized_images=False)
-
-
-    print(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
-    plot_images(sampled_images, num_samples, num_classes, train_data.classes)
+    plot_images(sampled_images, num_samples, num_classes, train_data.classes, None)
