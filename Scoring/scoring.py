@@ -4,6 +4,8 @@ from tqdm import tqdm
 from torchmetrics.image.fid import FrechetInceptionDistance # https://lightning.ai/docs/torchmetrics/stable/image/frechet_inception_distance.html
 from torchmetrics.image.inception import InceptionScore # https://lightning.ai/docs/torchmetrics/stable/image/inception_score.html
 
+import gc
+
 def evaluate_generator(generated_images: torch.Tensor, real_images: torch.Tensor, num_labels: int, normalized_images=False) -> typing.Tuple[float, float]:
     """
     Computes and returns the FID and IS scores. First float is mean fid value, second is mean inception score 
@@ -23,6 +25,10 @@ def evaluate_generator(generated_images: torch.Tensor, real_images: torch.Tensor
 
     fid_score = fid.compute()
     print("FID: ", fid_score.item())
+
+    del fid
+    gc.collect()
+    torch.cuda.empty_cache()
 
     inception = InceptionScore(normalize=normalized_images).to(device)
 
