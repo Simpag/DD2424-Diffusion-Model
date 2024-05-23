@@ -59,6 +59,6 @@ if __name__ == "__main__":
     assert real_images.shape[0] == sampled_images.shape[0], f"Sampled and real images must be same shape! Got sampled: {sampled_images.shape}, real: {real_images.shape}"
 
     fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images, num_labels=num_classes, normalized_images=False)
-    print(f'None ema: FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
-    log_results(f'None ema: FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
+    print(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
+    log_results(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
     
