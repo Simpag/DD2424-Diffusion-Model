@@ -33,7 +33,7 @@ if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Set model name to load (will also load ema_model_name)
-    model_name = "ema_constantLR_continue.pt"
+    model_name = "constantLR_continue.pt"
 
     # Set how many times we sample each class
     num_samples = 100 # There are 10_000 images in the test set
@@ -65,4 +65,5 @@ if __name__ == "__main__":
     fid_score, is_score, is_deviation = evaluate_generator(generated_images=sampled_images, real_images=real_images, num_labels=num_classes, normalized_images=False)
     print(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
     log_results(f'FID: {fid_score}, IS: {is_score}, IS deviation: {is_deviation}')
+    print(f'Sample sizes, sampled: {sampled_images.shape}, real: {real_images.shape}')
     
